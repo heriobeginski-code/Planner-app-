@@ -5,45 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Handshake Hub</title>
     
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
+    <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/framer-motion/10.16.4/framer-motion.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     
     <style>
-        body { background: #050505; color: #fff; font-family: 'Inter', sans-serif; margin: 0; }
+        body { background: #050505; color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow-x: hidden; }
         .glare-card {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
         .glow-pink {
             border-color: #ff007f !important;
-            box-shadow: 0 0 30px rgba(255, 0, 127, 0.3);
-            animation: pulse-pink 2s infinite;
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.4);
         }
-        @keyframes pulse-pink {
-            0%, 100% { border-color: #ff007f; }
-            50% { border-color: #ff007f44; }
-        }
+        .pill-shadow { box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
     <div id="root">
-        <div style="display:flex; height:100vh; align-items:center; justify-content:center; color:#444;">
-            Initializing GENIE Interface...
+        <div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; gap:20px;">
+            <div style="color:#666; font-size:14px; letter-spacing:2px; text-transform:uppercase;">Handshake Hub</div>
+            <div style="width:20px; height:20px; border:2px solid #333; border-top-color:#fff; border-radius:50%; animate: spin 1s linear infinite;"></div>
         </div>
     </div>
 
     <script type="text/babel">
-        // Destructure hooks from React object
-        const { useState, useEffect } = React;
-        const { motion, AnimatePresence } = FramerMotion;
+        const { useState, useEffect, useMemo } = React;
+        const { motion, AnimatePresence } = window.Motion; // Framer Motion attaches to window.Motion in some CDN builds
 
         const CATEGORIES = [
             { id: 'work', name: 'Work', icon: '💼' },
@@ -57,94 +53,94 @@
             const [isFormOpen, setIsFormOpen] = useState(false);
             const [items, setItems] = useState([]);
 
-            // Handshake Storage Listener
+            // Handshake Listener for localStorage
             useEffect(() => {
-                const handleStorage = (e) => {
+                const checkStorage = (e) => {
                     if (e.key === 'logic_brain_dump') {
                         try {
                             const data = JSON.parse(e.newValue);
                             setActiveGlow(data.targetCategory || 'work');
-                        } catch (err) { console.error("Handshake Parse Error", err); }
+                        } catch (err) {}
                     }
                 };
-                window.addEventListener('storage', handleStorage);
-                return () => window.removeEventListener('storage', handleStorage);
+                window.addEventListener('storage', checkStorage);
+                return () => window.removeEventListener('storage', checkStorage);
             }, []);
 
             return (
-                <div className="min-h-screen relative overflow-hidden">
+                <div className="min-h-screen bg-[#050505] text-white selection:bg-pink-500">
                     {/* Top Pill Bar */}
                     <div className="fixed top-8 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
-                        <motion.div 
-                            whileTap={{ scale: 0.95 }}
+                        <div 
                             onClick={() => setIsFormOpen(true)}
-                            className="glare-card rounded-full px-6 py-4 flex justify-between items-center cursor-pointer shadow-2xl"
+                            className="glare-card pill-shadow rounded-full px-6 py-4 flex justify-between items-center cursor-pointer active:scale-95 transition-transform"
                         >
-                            <span className="text-gray-400 text-sm font-light">Quick Entry...</span>
-                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">+</div>
-                        </motion.div>
+                            <span className="text-gray-400 text-sm">Quick Add Task...</span>
+                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-lg">+</div>
+                        </div>
                     </div>
 
-                    {/* Main Content Area */}
-                    <main className="pt-32 px-6 max-w-4xl mx-auto">
+                    {/* Views */}
+                    <main className="pt-32 pb-32 px-6 max-w-4xl mx-auto">
                         {view === 'dashboard' && (
                             <div className="grid grid-cols-2 gap-4">
                                 {CATEGORIES.map(cat => (
                                     <div 
                                         key={cat.id}
-                                        onClick={() => setActiveGlow(null)}
-                                        className={`glare-card aspect-square rounded-[2.5rem] p-8 flex flex-col justify-between transition-all duration-500 ${activeGlow === cat.id ? 'glow-pink' : ''}`}
+                                        className={`glare-card aspect-square rounded-[2.5rem] p-8 flex flex-col justify-between transition-all duration-700 ${activeGlow === cat.id ? 'glow-pink' : ''}`}
                                     >
                                         <div className="text-4xl">{cat.icon}</div>
-                                        <h3 className="text-xl font-semibold tracking-tight">{cat.name}</h3>
+                                        <div>
+                                            <h3 className="text-xl font-bold">{cat.name}</h3>
+                                            <p className="text-[10px] text-gray-500 uppercase mt-1 tracking-widest">Category</p>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
                         )}
 
                         {view === 'stack' && (
-                            <div className="h-[50vh] flex flex-col items-center justify-center text-center">
-                                <div className="glare-card w-64 h-80 rounded-3xl p-8 flex items-center justify-center border-dashed border-white/20">
-                                    <p className="text-gray-500 text-sm">Stack is empty.<br/>Add items to sift.</p>
+                            <div className="h-[50vh] flex items-center justify-center">
+                                <div className="glare-card w-64 h-80 rounded-3xl p-8 border-dashed border-white/10 flex flex-col items-center justify-center opacity-50">
+                                    <div className="text-2xl mb-2">🗂️</div>
+                                    <p className="text-xs text-center">Stack is empty.</p>
                                 </div>
+                            </div>
+                        )}
+                        
+                        {view === 'calendar' && (
+                            <div className="glare-card rounded-[2.5rem] p-10 h-[50vh] flex items-center justify-center">
+                                <p className="text-gray-500 italic">Calendar View: Coming Soon</p>
                             </div>
                         )}
                     </main>
 
-                    {/* Navigation Bar */}
-                    <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 glare-card rounded-full p-1.5 flex gap-1 z-50">
+                    {/* Bottom Nav */}
+                    <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 glare-card rounded-full p-1.5 flex gap-1 z-50 pill-shadow">
                         {['dashboard', 'calendar', 'stack'].map(v => (
                             <button 
                                 key={v}
                                 onClick={() => setView(v)}
-                                className={`px-6 py-2.5 rounded-full text-xs font-semibold uppercase tracking-widest transition-all ${view === v ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-tighter transition-all ${view === v ? 'bg-white text-black' : 'text-gray-400 hover:text-white'}`}
                             >
                                 {v}
                             </button>
                         ))}
                     </nav>
 
-                    {/* Form Modal */}
-                    <AnimatePresence>
-                        {isFormOpen && (
-                            <motion.div 
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-6"
-                            >
-                                <motion.div 
-                                    initial={{ y: 50, scale: 0.9 }} animate={{ y: 0, scale: 1 }}
-                                    className="glare-card w-full max-w-md rounded-[3rem] p-10 relative"
-                                >
-                                    <h2 className="text-2xl font-bold mb-8">New Logic Entry</h2>
-                                    <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 outline-none focus:border-white/40" placeholder="Describe the task..." />
-                                    <div className="flex justify-end gap-4">
-                                        <button onClick={() => setIsFormOpen(false)} className="text-gray-500">Cancel</button>
-                                        <button onClick={() => setIsFormOpen(false)} className="bg-white text-black px-8 py-3 rounded-full font-bold">Save</button>
-                                    </div>
-                                </motion.div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    {/* Quick Entry Modal */}
+                    {isFormOpen && (
+                        <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+                            <div className="glare-card w-full max-w-md rounded-[3rem] p-10">
+                                <h2 className="text-2xl font-bold mb-8">New Entry</h2>
+                                <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 outline-none focus:border-white/30" placeholder="What needs doing?" autoFocus />
+                                <div className="flex justify-between items-center">
+                                    <button onClick={() => setIsFormOpen(false)} className="text-gray-500 font-medium">Cancel</button>
+                                    <button onClick={() => setIsFormOpen(false)} className="bg-white text-black px-10 py-3 rounded-full font-bold">Add</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         }
