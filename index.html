@@ -3,45 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Handshake Hub</title>
-    
+    <title>Glare Planner</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    
     <style>
-        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; margin: 0; overflow: hidden; }
-        
-        /* The "Glare" Effect */
+        body { background: #000; color: #fff; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
         .glare-card {
-            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 8px 32px 0 rgba(0,0,0,0.8);
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
         }
-
-        /* The Handshake Glow */
-        .glow-pink {
-            border-color: #ff007f !important;
-            box-shadow: 0 0 40px rgba(255, 0, 127, 0.3);
-            animation: pulse 2s infinite ease-in-out;
+        .illuminate-blue {
+            filter: drop-shadow(0 0 8px #007AFF);
+            border-color: #007AFF !important;
+            background: rgba(0, 122, 255, 0.2) !important;
         }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(1.02); }
-        }
-
-        /* Conflict Warning */
-        .conflict-red { border: 2px solid #ff4b4b !important; }
-
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 0px; }
+        .overlap-red { border: 2px solid #FF3B30 !important; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
     </style>
 </head>
 <body>
@@ -49,171 +34,176 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
-        const { motion, AnimatePresence } = window.Motion;
+        const { motion, AnimatePresence, useMotionValue, useTransform } = window.Motion;
 
-        const CATEGORIES = [
-            { id: 'work', name: 'Work', icon: '💼' },
-            { id: 'personal', name: 'Personal', icon: '👤' },
-            { id: 'kids', name: 'Kids', icon: '👶' }
-        ];
-
-        function App() {
+        const App = () => {
+            // --- DATA PERSISTENCE ---
+            const [categories, setCategories] = useState(() => 
+                JSON.parse(localStorage.getItem('glare_cats') || '["Work", "Personal", "Health"]')
+            );
+            const [items, setItems] = useState(() => 
+                JSON.parse(localStorage.getItem('glare_items') || '[]')
+            );
             const [view, setView] = useState('dashboard');
-            const [activeGlow, setActiveGlow] = useState(null);
-            const [items, setItems] = useState(() => JSON.parse(localStorage.getItem('hs_data') || '[]'));
             const [isFormOpen, setIsFormOpen] = useState(false);
 
-            // --- Handshake Handlers ---
             useEffect(() => {
-                const handleHandshake = (e) => {
-                    if (e.key === 'logic_brain_dump') {
-                        const data = JSON.parse(e.newValue);
-                        setActiveGlow(data.targetCategory || 'work');
-                        // Optional: Add to items if data contains a task
-                    }
-                };
-                window.addEventListener('storage', handleHandshake);
-                return () => window.removeEventListener('storage', handleHandshake);
-            }, []);
+                localStorage.setItem('glare_cats', JSON.stringify(categories));
+                localStorage.setItem('glare_items', JSON.stringify(items));
+            }, [categories, items]);
 
-            useEffect(() => {
-                localStorage.setItem('hs_data', JSON.stringify(items));
-            }, [items]);
+            // --- CATEGORY ACTIONS ---
+            const addCategory = () => {
+                const name = prompt("Category Name?");
+                if (name) setCategories([...categories, name]);
+            };
+            const deleteCategory = (name) => {
+                if (confirm(`Delete ${name}?`)) setCategories(categories.filter(c => c !== name));
+            };
 
-            const addItem = (item) => {
-                setItems([...items, { ...item, id: Date.now(), done: false }]);
-                setIsFormOpen(false);
+            const toggleComplete = (id) => {
+                setItems(items.map(i => i.id === id ? {...i, completed: !i.completed} : i));
+            };
+
+            const moveItem = (id, date) => {
+                setItems(items.map(i => i.id === id ? {...i, date} : i));
             };
 
             return (
-                <div className="h-screen w-full flex flex-col relative overflow-hidden bg-[#050505]">
-                    
-                    {/* UI: Pill Bar */}
-                    <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
-                        <motion.div 
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => setIsFormOpen(true)}
-                            className="glare-card rounded-full px-6 py-4 flex justify-between items-center cursor-pointer"
-                        >
-                            <span className="text-gray-400 text-sm font-light">Quick Entry...</span>
-                            <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">+</div>
-                        </motion.div>
+                <div className="h-screen w-full flex flex-col relative overflow-hidden">
+                    {/* 4. THE PILL BAR */}
+                    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-md">
+                        <div onClick={() => setIsFormOpen(true)} className="glare-card rounded-full px-6 py-3 flex justify-between items-center cursor-pointer shadow-2xl active:scale-95">
+                            <span className="text-gray-400 text-sm">Add New Entry...</span>
+                            <div className="bg-white/10 w-6 h-6 rounded-full flex items-center justify-center">+</div>
+                        </div>
                     </div>
 
-                    {/* Main Content Area */}
-                    <main className="flex-1 pt-32 px-6 overflow-y-auto pb-32">
+                    <main className="flex-1 pt-24 px-6 overflow-y-auto no-scrollbar pb-32">
                         {view === 'dashboard' && (
                             <div className="grid grid-cols-2 gap-4 max-w-2xl mx-auto">
-                                {CATEGORIES.map(cat => (
-                                    <motion.div 
-                                        key={cat.id}
-                                        layoutId={cat.id}
-                                        className={`glare-card aspect-square rounded-[2.5rem] p-8 flex flex-col justify-between transition-all duration-500 ${activeGlow === cat.id ? 'glow-pink' : ''}`}
-                                    >
-                                        <div className="text-4xl">{cat.icon}</div>
-                                        <h3 className="text-xl font-bold">{cat.name}</h3>
-                                    </motion.div>
+                                {categories.map(cat => (
+                                    <div key={cat} onContextMenu={(e) => { e.preventDefault(); deleteCategory(cat); }}
+                                         className="glare-card aspect-square rounded-[2rem] p-8 flex flex-col justify-end">
+                                        <h3 className="text-xl font-semibold">{cat}</h3>
+                                    </div>
                                 ))}
+                                <div onClick={addCategory} className="glare-card aspect-square rounded-[2rem] border-dashed flex items-center justify-center text-4xl opacity-30 cursor-pointer">+</div>
                             </div>
                         )}
 
-                        {view === 'stack' && <CardStack items={items.filter(i => !i.done)} onDone={(id) => {
-                            setItems(items.map(i => i.id === id ? {...i, done: true} : i))
-                        }} />}
-
                         {view === 'calendar' && (
-                            <div className="glare-card rounded-[2.5rem] p-8 h-[60vh] flex items-center justify-center text-gray-500 italic">
-                                Agnostic Calendar Grid Active
-                            </div>
+                            <CalendarGrid items={items} onDrop={moveItem} toggleComplete={toggleComplete} />
+                        )}
+
+                        {view === 'stack' && (
+                            <StackView items={items.filter(i => !i.completed)} onDone={toggleComplete} />
                         )}
                     </main>
 
-                    {/* UI: Navigation */}
-                    <nav className="fixed bottom-10 left-1/2 -translate-x-1/2 glare-card rounded-full p-1.5 flex gap-1 z-50">
+                    {/* 5. NAVIGATION */}
+                    <nav className="fixed bottom-8 left-1/2 -translate-x-1/2 glare-card rounded-3xl p-2 flex gap-2 z-50 shadow-2xl">
                         {['dashboard', 'calendar', 'stack'].map(v => (
-                            <button 
-                                key={v}
-                                onClick={() => setView(v)}
-                                className={`px-6 py-2.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${view === v ? 'bg-white text-black' : 'text-gray-400'}`}
-                            >
+                            <button key={v} onClick={() => setView(v)} className={`px-6 py-2 rounded-2xl capitalize text-xs font-bold tracking-widest ${view === v ? 'bg-white text-black' : 'text-gray-500'}`}>
                                 {v}
                             </button>
                         ))}
                     </nav>
 
-                    {/* Entry Modal */}
                     <AnimatePresence>
-                        {isFormOpen && <EntryForm onAdd={addItem} onClose={() => setIsFormOpen(false)} />}
+                        {isFormOpen && <EntryForm categories={categories} onClose={() => setIsFormOpen(false)} onAdd={(item) => setItems([...items, {...item, id: Date.now(), completed: false}])} />}
                     </AnimatePresence>
-                </div>
-            );
-        }
-
-        const CardStack = ({ items, onDone }) => {
-            const [currentIndex, setCurrentIndex] = useState(0);
-            const activeItems = items.slice(currentIndex, currentIndex + 3);
-
-            return (
-                <div className="relative h-[60vh] flex items-center justify-center">
-                    {activeItems.length > 0 ? (
-                        <div className="relative w-72 h-96">
-                            {activeItems.map((item, i) => (
-                                <motion.div
-                                    key={item.id}
-                                    drag="x"
-                                    dragConstraints={{ left: 0, right: 0 }}
-                                    onDragEnd={(e, info) => {
-                                        if (info.offset.x > 100) setCurrentIndex(v => v + 1);
-                                        if (info.offset.x < -100) onDone(item.id);
-                                    }}
-                                    className="absolute inset-0 glare-card rounded-[2.5rem] p-10 flex flex-col justify-center text-center cursor-grab active:cursor-grabbing"
-                                    style={{ 
-                                        zIndex: 10 - i,
-                                        scale: 1 - i * 0.05,
-                                        y: i * -20,
-                                        opacity: 1 - i * 0.2
-                                    }}
-                                >
-                                    <div className="w-12 h-12 rounded-full border-2 border-white/20 mb-6 mx-auto flex items-center justify-center text-xs">
-                                        {i + 1}
-                                    </div>
-                                    <h2 className="text-2xl font-bold">{item.title}</h2>
-                                    <p className="text-pink-500 mt-2 uppercase text-[10px] font-bold tracking-widest">{item.type}</p>
-                                </motion.div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-gray-600">Stack Clear.</div>
-                    )}
                 </div>
             );
         };
 
-        const EntryForm = ({ onAdd, onClose }) => {
-            const [title, setTitle] = useState('');
+        // --- 3. DYNAMIC CALENDAR ---
+        const CalendarGrid = ({ items, onDrop, toggleComplete }) => {
+            const days = Array.from({length: 7}, (_, i) => i);
+            
+            const checkOverlap = (date, time) => {
+                if (!time) return false;
+                return items.filter(i => i.date === date && i.time === time).length > 1;
+            };
+
             return (
-                <motion.div 
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6"
-                >
-                    <motion.div 
-                        initial={{ y: 50 }} animate={{ y: 0 }}
-                        className="glare-card w-full max-w-sm rounded-[3rem] p-10"
-                    >
-                        <h2 className="text-2xl font-bold mb-6">Capture</h2>
-                        <input 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 mb-6 outline-none focus:border-white/40"
-                            placeholder="What's the play?" 
-                            autoFocus
-                            value={title}
-                            onChange={e => setTitle(e.target.value)}
-                        />
-                        <div className="flex justify-between items-center">
-                            <button onClick={onClose} className="text-gray-500">Cancel</button>
-                            <button onClick={() => onAdd({title, type: 'Task'})} className="bg-white text-black px-10 py-3 rounded-full font-bold">Create</button>
+                <div className="max-w-4xl mx-auto">
+                    <div className="calendar-grid mb-8">
+                        {days.map(d => (
+                            <div key={d} onDragOver={e => e.preventDefault()} onDrop={e => onDrop(Number(e.dataTransfer.getData("id")), d)}
+                                 className="glare-card min-h-[150px] rounded-2xl p-2 text-[10px] text-gray-500 flex flex-col gap-2">
+                                Day {d + 1}
+                                {items.filter(i => i.date === d).map(item => (
+                                    <div key={item.id} className={`p-2 rounded-lg text-white text-xs glare-card ${checkOverlap(item.date, item.time) ? 'overlap-red' : ''} ${item.completed ? 'illuminate-blue' : ''}`}>
+                                        {item.title}
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                    <div className="glare-card p-6 rounded-[2rem]">
+                        <h4 className="text-xs font-bold uppercase tracking-widest mb-4 opacity-50">Permanent To-Do</h4>
+                        <div className="flex flex-wrap gap-2">
+                            {items.filter(i => i.date === null).map(item => (
+                                <div key={item.id} draggable onDragStart={e => e.dataTransfer.setData("id", item.id)}
+                                     className="px-4 py-2 glare-card rounded-full text-sm cursor-grab active:cursor-grabbing">
+                                    {item.title}
+                                </div>
+                            ))}
                         </div>
-                    </motion.div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- 2. THE STACK ---
+        const StackView = ({ items, onDone }) => {
+            const [index, setIndex] = useState(0);
+            const activeItems = items.slice(index, index + 3);
+
+            return (
+                <div className="h-[60vh] flex items-center justify-center relative">
+                    {activeItems.map((item, i) => (
+                        <motion.div key={item.id} drag="x" dragConstraints={{left:0, right:0}}
+                            onDragEnd={(_, info) => {
+                                if (info.offset.x > 100) setIndex(v => v + 1);
+                                if (info.offset.x < -100) onDone(item.id);
+                            }}
+                            className="absolute w-72 h-96 glare-card rounded-[2.5rem] p-10 flex flex-col justify-center text-center cursor-grab active:cursor-grabbing shadow-2xl"
+                            style={{ zIndex: items.length - i, scale: 1 - i * 0.05, y: i * -15, rotateX: -10 }}
+                            animate={{ opacity: 1 - i * 0.3 }}
+                        >
+                            <div onClick={() => onDone(item.id)} className={`absolute top-6 left-6 w-5 h-5 rounded-full border border-white/30 ${item.completed ? 'illuminate-blue' : ''}`} />
+                            <h2 className="text-2xl font-bold">{item.title}</h2>
+                            <p className="text-blue-400 text-[10px] font-bold uppercase tracking-tighter mt-2">{item.type}</p>
+                        </motion.div>
+                    ))}
+                </div>
+            );
+        };
+
+        const EntryForm = ({ categories, onClose, onAdd }) => {
+            const [form, setForm] = useState({ title: '', type: 'Task', date: null, time: '', category: categories[0] });
+            return (
+                <motion.div initial={{opacity:0}} animate={{opacity:1}} className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[100] flex items-center justify-center p-6">
+                    <div className="glare-card w-full max-w-sm rounded-[3rem] p-10">
+                        <input autoFocus className="w-full bg-transparent text-2xl font-bold outline-none mb-8" placeholder="Title..." onChange={e => setForm({...form, title: e.target.value})} />
+                        <div className="flex gap-2 mb-8 no-scrollbar overflow-x-auto pb-2">
+                            {['Task', 'Bill', 'Appt'].map(t => (
+                                <button key={t} onClick={() => setForm({...form, type: t})} className={`px-4 py-2 rounded-full text-xs font-bold border ${form.type === t ? 'bg-white text-black' : 'border-white/10'}`}>{t}</button>
+                            ))}
+                        </div>
+                        <input type="time" className="w-full bg-white/5 p-4 rounded-2xl mb-8 outline-none border border-white/10" onChange={e => setForm({...form, time: e.target.value})} />
+                        <div className="flex gap-2 no-scrollbar overflow-x-auto pb-4 border-t border-white/10 pt-6">
+                            {categories.map(c => (
+                                <button key={c} onClick={() => setForm({...form, category: c})} className={`px-4 py-2 rounded-full text-xs whitespace-nowrap ${form.category === c ? 'bg-blue-500' : 'bg-white/5'}`}>{c}</button>
+                            ))}
+                        </div>
+                        <div className="flex justify-between mt-6">
+                            <button onClick={onClose} className="text-gray-500">Cancel</button>
+                            <button onClick={() => { onAdd(form); onClose(); }} className="bg-white text-black px-8 py-3 rounded-full font-bold">Add</button>
+                        </div>
+                    </div>
                 </motion.div>
             );
         };
